@@ -32,7 +32,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 ${SUDO} rm -rf ./data
 mkdir -p log
 
-IP_ADDRESS=$(hostname -I | xargs | awk '{print $1}')
+IP_ADDRESS=$(hostname --ip-address | xargs | awk '{print $1}')
 
 echo "Starting consul..."
 consul agent -dev \
@@ -50,7 +50,6 @@ done
 echo "Starting nomad..."
 sudo nomad agent -dev \
   -config ./etc/nomad.hcl \
-  -network-interface eth0 \
   -consul-address "${IP_ADDRESS}:8500" \
   &>log/nomad.log &
 

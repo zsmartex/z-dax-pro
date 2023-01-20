@@ -8,5 +8,5 @@ resource "nomad_job" "traefik" {
 }
 
 resource "nomad_job" "backend" {
-  jobspec = file("${path.module}/nomad/jobs/backend.nomad.hcl")
+  jobspec = file("${path.module}/jobs/backend.nomad.hcl")
 }
