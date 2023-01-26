@@ -1,0 +1,20 @@
+[{{ hs_workspace }}_platform:children]
+{{ hs_workspace }}_cluster
+{{ hs_workspace }}
+
+[{{ hs_workspace }}_cluster:children]
+{{ hs_workspace }}_masters
+{{ hs_workspace }}_minions
+
+[{{ hs_workspace }}]
+{{ hs_workspace }}-sre
+
+[{{ hs_workspace }}_masters]
+{% for master_ip in masters_ipv4 %}
+{{ hs_workspace }}-master-0{{ loop.index }}
+{% endfor %}
+
+[{{ hs_workspace }}_minions]
+{% for minion_ip in minions_ipv4 %}
+{{ hs_workspace }}-minion-0{{ loop.index }}
+{% endfor %}

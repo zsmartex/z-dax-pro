@@ -1,0 +1,62 @@
+---
+collection_root: "{{ (playbook_dir + '/../') | realpath }}"
+
+hs_workspace: "{{ lookup('env', 'HS_WORKSPACE') }}"
+hs_workspace_root: "{{ lookup('env', 'PWD') }}"
+hs_workspace_group_vars_root_dir: "{{ hs_workspace_root }}/group_vars"
+hs_workspace_host_vars_dir: "{{ hs_workspace_root }}/host_vars"
+hs_workspace_group_vars_dir: "{{ hs_workspace_root }}/group_vars/{{ hs_workspace }}_platform"
+hs_workspace_cluster_vars_dir: "{{ hs_workspace_root }}/group_vars/{{ hs_workspace }}_cluster"
+hs_workspace_tf_modules_dir: "{{ hs_workspace_group_vars_dir }}/terraform"
+hs_workspace_secrets_dir: "{{ hs_workspace_group_vars_dir }}/secrets"
+hs_workspace_default_ssh_private_key_file: "{{ hs_workspace_secrets_dir }}/{{ hs_workspace }}.key"
+hs_workspace_default_ssh_public_key_file: "{{ hs_workspace_default_ssh_private_key_file }}.pub"
+
+hs_workspace_platform_group: "{{ hs_workspace }}_platform"
+hs_workspace_cluster_group: "{{ hs_workspace }}_cluster"
+hs_workspace_masters_group: "{{ hs_workspace }}_masters"
+hs_workspace_minions_group: "{{ hs_workspace }}_minions"
+
+host_vars_dir: "{{ hs_workspace_host_vars_dir }}/{{ inventory_hostname }}"
+host_secrets_dir: "{{ host_vars_dir }}/secrets"
+
+local_ca_private_key: "{{ hs_workspace_secrets_dir }}/ca.cert.key"
+local_ca_certificate: "{{ hs_workspace_secrets_dir }}/ca.cert.pem"
+
+host_private_key_passphrase_file: "{{ host_secrets_dir }}/self.cert.pass"
+host_private_key_passphrase: "{{ lookup('password', host_private_key_passphrase_file + ' length=42') }}"
+host_private_key: "{{ host_secrets_dir }}/self.cert.key"
+host_certificate: "{{ host_secrets_dir }}/self.cert.pem"
+host_fullchain_certificate: "{{ host_secrets_dir }}/self.fullchain.cert.pem"
+
+local_ca_passphrase: "{{ lookup('password', hs_workspace_secrets_dir + '/local_ca.passphrase length=42') }}"
+local_ca_common_name: "{{ hs_workspace }} Internal CA"
+bootstrap_ssh_PermitRootLogin: "no"    # noqa var-naming
+required_system_packages:
+  - apt-transport-https
+  - aptitude
+  - build-essential
+  - git
+  - libffi-dev
+  - libperl-dev
+  - libssl-dev
+  - python3
+  - python3-apt
+  - python3-distutils-extra
+  - python3-venv
+  - python3-pip
+  - python3-setuptools
+  - python-apt-dev
+  - sudo
+
+collection_tf_modules_dir: "{{ collection_root }}/terraform"
+__dot: '.'
+__backslash: '\'
+tf_module_src: "{{ collection_tf_modules_dir }}/{{ tf_module_name }}/"
+tf_module_dest: "{{ hs_workspace_tf_modules_dir }}/{{ tf_module_name }}"
+
+tf_core_block_marker: >-
+  # {mark}--playbooks/tf_core.yml--{{ hs_workspace }}
+
+default_local_ssh_config_template: "_tf_core_ssh_cfg.j2"
+

@@ -1,0 +1,48 @@
+---
+__consul_vars_precedence:
+  - "{{ ansible_distribution | lower }}_{{ ansible_distribution_major_version }}_{{ ansible_architecture | lower }}.yml"
+  - "{{ ansible_distribution | lower }}_{{ ansible_architecture | lower }}.yml"
+  - "{{ ansible_distribution | lower }}_{{ ansible_distribution_major_version }}.yml"
+  - "{{ ansible_distribution | lower }}.yml"
+  - "{{ ansible_os_family | lower }}.yml"
+
+__consul_tasks_precedence:
+  - "{{ ansible_distribution | lower }}_{{ ansible_distribution_major_version }}_{{ ansible_architecture | lower }}/main.yml"
+  - "{{ ansible_distribution | lower }}_{{ ansible_architecture | lower }}/main.yml"
+  - "{{ ansible_distribution | lower }}_{{ ansible_distribution_major_version }}/main.yml"
+  - "{{ ansible_distribution | lower }}/main.yml"
+
+__consul_is_master: >-
+  {{
+    consul_inventory_masters_group is defined
+    and consul_inventory_masters_group | length > 0
+    and inventory_hostname in groups[consul_inventory_masters_group]
+  }}
+
+__consul_is_minion: "{{ not __consul_is_master }}"
+
+__consul_tls_dir: "/etc/ssl/private"
+
+__consul_ssl_cert_group: "ssl-cert"
+
+__consul_conf_file: "/etc/consul.d/consul.hcl"
+__consul_data_dir: "/opt/consul/data"
+__consul_expected_directories:
+  - "{{ __consul_data_dir }}"
+
+__consul_home: "/home/consul"
+
+__consul_self_private_key: "{{ __consul_tls_dir }}/self.cert.key"
+__consul_self_certificate: "{{ __consul_tls_dir }}/self.fullchain.cert.pem"
+__consul_ca_certificate_dir: "/usr/local/share/ca-certificates"
+__consul_ca_certificate: "{{ __consul_ca_certificate_dir }}/consul.ca.crt"
+__consul_vault_root_ca_certificate: "{{ __consul_ca_certificate_dir }}/vault.root_ca.crt"
+
+__consul_encrypt_key_local_path: "{{ consul_local_secrets_dir }}/consul.encrypt_key"
+__consul_encrypt_key: >-
+  {{ lookup('file', __consul_encrypt_key_local_path) }}
+
+__consul_acl_auto_encrypt_token_path: "{{ consul_local_secrets_dir }}/consul.acl_token"
+
+__consul_acl_bootstrapped: false
+

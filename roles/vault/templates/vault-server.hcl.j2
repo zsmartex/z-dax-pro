@@ -1,0 +1,39 @@
+cluster_name = "{{ vault_cluster_name }}"
+api_addr     = "{{ __vault_conf_api_addr }}"
+cluster_addr = "{{ __vault_conf_cluster_addr }}"
+
+ui           = true
+log_level    = "Info"
+
+storage "raft" {
+  path    = "{{ __vault_data_dir }}"
+  node_id = "{{ inventory_hostname }}"
+
+{% for partner_peer in vault_master_partners %}
+  retry_join {
+    leader_api_addr         = "{{ vault_api_protocol }}://{{ partner_peer }}:{{ vault_api_port }}"
+{% if vault_use_custom_ca %}    leader_ca_cert_file     = "{{ __vault_ca_certificate }}"{% endif %}
+    leader_client_key_file  = "{{ __vault_self_private_key }}"
+    leader_client_cert_file = "{{ __vault_self_certificate }}"
+  }
+{% endfor %}
+}
+
+listener "tcp" {
+  address            = "{{ vault_api_listener }}"
+  cluster_address    = "{{ vault_cluster_listener }}"
+  tls_cert_file      = "{{ __vault_self_certificate }}"
+  tls_key_file       = "{{ __vault_self_private_key }}"
+{% if vault_use_custom_ca %}  tls_client_ca_file = "{{ __vault_ca_certificate }}"{% endif %}
+}
+
+{% if __vault_service_registration_enabled %}
+service_registration "consul" {
+  address = "{{ vault_service_registration_address }}"
+}
+{% endif %}
+
+telemetry {
+  disable_hostname = true
+  prometheus_retention_time = "30s"
+}

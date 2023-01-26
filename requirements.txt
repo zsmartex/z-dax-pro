@@ -1,0 +1,13 @@
+ansible-core==2.14.1
+ansible-lint
+docker
+ipaddr
+molecule-plugins[podman, docker]
+molecule==4.0.4
+netaddr
+passlib
+yamllint
+jmespath
+sphinx==5.3.0
+myst-parser==0.18.1
+furo

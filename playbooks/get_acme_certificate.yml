@@ -1,0 +1,55 @@
+---
+- hosts: "{{ lookup('env', 'HS_WORKSPACE') }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - shell: >-
+        cat /etc/bind/keys/{{ hs_dns_key.name }}.conf
+        | grep secret
+        | cut -d '"' -f2
+      register: tsig_key_sh
+
+    - set_fact:
+        acme_nsupdate_key_secret: "{{ tsig_key_sh.stdout }}"
+
+- import_playbook: rtnp.galaxie_clans.acme_rotate_certificates
+  vars:
+    scope: "{{ lookup('env', 'HS_WORKSPACE') }}"
+    acme_nsupdate_host: "{{ public_ipv4 }}"
+
+- hosts: "{{ lookup('env', 'HS_WORKSPACE') }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - debug:
+        msg: "/etc/ssl/private/*.{{ public_domain }}.{{ _current_part.extension }}"
+      loop:
+        - extension: crt
+          dest: "{{ vault_node_cert }}"
+        - extension: "key"
+          dest: "{{ vault_node_cert_private_key }}"
+        - extension: "fullchain.crt"
+          dest: "{{ vault_node_cert_fullchain }}"
+      loop_control:
+        loop_var: _current_part
+      tags:
+        - fetch
+
+    - name: Get certificate
+      fetch:
+        src: "/etc/ssl/private/*.{{ public_domain }}.{{ _current_part.extension }}"
+        dest: "{{ _current_part.dest }}"
+        flat: true
+      loop:
+        - extension: crt
+          dest: "{{ vault_node_cert }}"
+        - extension: "key"
+          dest: "{{ vault_node_cert_private_key }}"
+        - extension: "fullchain.crt"
+          dest: "{{ vault_node_cert_fullchain }}"
+      loop_control:
+        loop_var: _current_part
+      tags:
+        - fetch

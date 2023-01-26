@@ -1,0 +1,122 @@
+---
+- name: Check directories exist
+  file:
+    path: "{{ _current_directory }}"
+    owner: nomad
+    group: nomad
+    state: directory
+    mode: 0700
+  loop: "{{ __nomad_expected_directories }}"
+  loop_control:
+    loop_var: _current_directory
+
+- name: Common private ssl directory
+  file:
+    path: "{{ __nomad_tls_dir }}"
+    owner: root
+    group: "{{ __nomad_ssl_cert_group }}"
+    state: directory
+    mode: 0750
+
+- name: Add nomad user to ssl-cert group
+  user:
+    name: nomad
+    groups: "{{ __nomad_ssl_cert_group }}"
+    append: true
+
+- name: Upload Vault Root CA
+  copy:
+    dest: "{{ __nomad_vault_root_ca_certificate }}"
+    content: |-
+      {{ pki_root_certificate_b64 | b64decode }}
+    mode: 0644
+    owner: root
+    group: "{{ __nomad_ssl_cert_group }}"
+  notify: Update ca trust
+
+- name: Upload CA certificate
+  copy:
+    src: "{{ nomad_local_ca_cert }}"
+    dest: "{{ __nomad_ca_certificate }}"
+    owner: root
+    group: "{{ __nomad_ssl_cert_group }}"
+    mode: 0644
+  notify:
+    - Update ca trust
+  when: nomad_use_custom_ca
+
+- name: Flush handlers
+  meta: flush_handlers
+
+- name: Upload self certificate
+  copy:
+    src: "{{ _current_cert_part }}"
+    dest: "{{ __nomad_tls_dir }}/{{ _current_cert_part.split('/')[-1] }}"
+    owner: root
+    group: "{{ __nomad_ssl_cert_group }}"
+    mode: 0640
+  loop:
+    - "{{ nomad_node_cert }}"
+    - "{{ nomad_node_cert_private_key }}"
+    - "{{ nomad_node_cert_fullchain }}"
+  loop_control:
+    loop_var: _current_cert_part
+  notify: Restart nomad
+
+- name: Generate encrypt key
+  copy:
+    dest: "{{ __nomad_encrypt_key_local_path }}"
+    mode: 0600
+    content: >
+      {{
+        lookup('password', __nomad_encrypt_key_local_path +'.gen length=32 chars=ascii_letters,digits,punctuation')
+        | b64encode
+      }}
+  run_once: true
+  become: false
+  delegate_to: localhost
+  no_log: true
+
+- name: Write nomad server environment
+  template:
+    src: "nomad.env.j2"
+    dest: "{{ __nomad_env_file }}"
+    owner: nomad
+    group: nomad
+    mode: 0640
+  notify: Restart nomad
+
+- name: Write nomad server configuration
+  template:
+    src: "nomad.hcl.j2"
+    dest: "{{ __nomad_conf_file }}"
+    owner: nomad
+    group: nomad
+    mode: 0640
+  notify: Restart nomad
+
+- name: Check that /etc/modules exists
+  stat:
+    path: /etc/modules
+  register: modules_file_stat
+
+- name: Add netfilter to loaded modules
+  lineinfile:
+    path: /etc/modules
+    line: br_netfilter
+    create: yes
+  when: modules_file_stat.stat.exists
+  notify: Reload kernel modules
+
+- name: Flush before continuing
+  meta: flush_handlers
+
+- name: Apply sysctl customization
+  ansible.posix.sysctl:
+    name: "{{ _current_sysctl_option.key }}"
+    value: "{{ _current_sysctl_option.value }}"
+    state: present
+    reload: true
+  loop: "{{ nomad_sysctl | dict2items }}"
+  loop_control:
+    loop_var: _current_sysctl_option
