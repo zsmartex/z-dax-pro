@@ -1,8 +1,0 @@
----
-- hosts: "{{ lookup('env', 'HS_WORKSPACE') }}_platform"
-  become: true
-  gather_facts: true
-
-  roles:
-    - role: "consul"
-    - role: "envoy"

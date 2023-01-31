@@ -1,0 +1,59 @@
+dc_name: hetzner
+base_dir: config
+org_name: zsmartex
+
+cluster_config:
+  servers: 2 # min 2 servers
+  clients: 2 # min 2 client for loadbalancer
+  vault_servers: 1
+  database_servers: 1 # db is separate because database need different spec
+  consul_volume_size: 10
+  separate_consul_servers: false
+  ingress:
+    management_domain: zsmartex.com
+  client_volumes: []
+  # - name: "data_vol"
+  #   client: "zsmartex-client-1"
+  #   path: /opt/nomad_client_data
+  #   size: 20
+  database_volumes:
+  - name: "data_vol"
+    server: "zsmartex-database-server-1"
+    path: /opt/database_data
+    size: 10
+
+observability_config:
+  multi_instance: false # sets all on 1 server if false, 4 separate if true
+  tempo_bucket: tempo
+  loki_bucket: loki
+
+cloud_provider_config:
+  internal_network_interface_name: enp7s0 #ens10
+  sudo_user: root
+  sudo_dir: /root
+  provider: hetzner
+  provider_settings:
+    location: nbg1
+    ssh_keys:
+    - wille.faler@gmail.com
+    load_balancer_type: lb11
+    ssl_certificate_ids:
+    - 1133302 # use Hetzner hcloud CLI tool to retrieve numeric ID: "hcloud certificate list"
+    server_instance_type: cpx11
+    client_instance_type: cpx11
+    database_instance_type: cpx11
+    observability_instance_type: cpx11
+    resource_names:
+      base_server_name: zsmartex
+      firewall_name: firewall
+      network_name: private_network
+    allowed_ips:
+    - 171.236.157.218/32
+
+# this config is only for first run
+database_config:
+  self_hosted: true
+  host: database.consul.service
+  port: 5432
+  username: root
+  password: changeme
