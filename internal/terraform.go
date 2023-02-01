@@ -47,6 +47,7 @@ func InitTf(ctx context.Context, config *Config, stdOut, stdErr io.Writer) (*tfe
 		Variables: map[string]any{
 			"HTTPSAllowedIPs": allowIps,
 		},
+		WriteKind: WriteKindTemplate,
 	})
 	if err != nil {
 		return nil, err

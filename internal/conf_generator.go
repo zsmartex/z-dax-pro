@@ -21,7 +21,7 @@ func GenerateTemplate(templateText string, data any, kind WriteKind) (outTmpl []
 			case map[string]any:
 				return GenerateTemplate(templateText, _data, kind)
 			default:
-				templateText = strings.ReplaceAll(templateText, f, fmt.Sprintf("%v", t))
+				templateText = strings.ReplaceAll(templateText, fmt.Sprintf("${%s}", f), fmt.Sprintf("%v", t))
 			}
 		}
 

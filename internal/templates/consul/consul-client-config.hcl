@@ -1,45 +1,37 @@
-datacenter = "dc1"
+datacenter = "${DATACENTER}"
 data_dir = "/opt/consul"
 encrypt = "{{ CONSUL_GOSSIP_KEY }}"
 verify_incoming = true
 verify_outgoing = true
 verify_server_hostname = true
 
-client_addr = "0.0.0.0"
-server = true
-bootstrap_expect = EXPECTS_NO
+server = false
 
 bind_addr = "{{ private_ip }}"
 
 ca_file = "/etc/consul.d/certs/consul-agent-ca.pem"
-cert_file = "/etc/consul.d/certs/dc1-server-consul-0.pem"
-key_file = "/etc/consul.d/certs/dc1-server-consul-0-key.pem"
+key_file = "/etc/consul.d/certs/consul-agent-ca-key.pem"
 
 auto_encrypt {
-  allow_tls = true
+  tls = true
 }
 
+ports {
+  grpc = 8502
+  http = 8500
+  https = 8501
+}
 
 connect {
   enabled = true
 }
 
-retry_join = [join_servers]
+retry_join = [${JOIN_SERVERS}]
 
-
-ui_config {
-  enabled = true
-}
-
-acl = {
-  enabled = true
-  default_policy = "deny"
-  enable_token_persistence = true
-}
-
-ports {
-  http = 8500
-  https = 8501
+acl {
+  tokens {
+    agent  = "{{CONSUL_AGENT_TOKEN}}"
+  }
 }
 
 telemetry {

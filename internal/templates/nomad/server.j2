@@ -1,6 +1,6 @@
 # Setup data dir
 data_dir = "/opt/nomad"
-datacenter = "{{.Config.DC}}"
+datacenter = "${DATACENTER}"
 
 log_level = "INFO"
 log_json = true
@@ -13,7 +13,7 @@ server {
   encrypt = "{{ NOMAD_GOSSIP_KEY }}"
 
   # Self-elect, should be 3 or 5 for production
-  bootstrap_expect = {{.ExpectsNo}}
+  bootstrap_expect = ${EXPECTS_NO}
 }
 #bind_addr = "0.0.0.0" #was private_ip, but for Contabo, it was same as public
 

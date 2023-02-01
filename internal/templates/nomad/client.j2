@@ -7,7 +7,7 @@ log_rotate_max_files = 6
 # Setup data dir
 data_dir = "/opt/nomad"
 
-datacenter = "{{.Config.DC}}"
+datacenter = "${DATACENTER}"
 
 bind_addr = "{{private_ip}}" 
 

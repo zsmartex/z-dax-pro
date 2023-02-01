@@ -1,5 +1,5 @@
 job "healthcheck" {
-  datacenters = ["{{.Config.DC}}"]
+  datacenters = ["${DATACENTER}"]
   type = "service"
 
   group "healthcheck" {

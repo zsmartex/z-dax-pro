@@ -38,31 +38,6 @@ func Configure(config *Config, inventory Inventory) error {
 		return err
 	}
 
-	err = os.MkdirAll(filepath.Join(config.BaseDir, "ansible"), 0750)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(config.BaseDir, "ansible", "base.yml"), []byte(strings.ReplaceAll(baseAnsible, "dc1", config.DC)), 0600)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(config.BaseDir, "ansible", "consul.yml"), []byte(strings.ReplaceAll(consulAnsible, "dc1", config.DC)), 0600)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(config.BaseDir, "ansible", "nomad.yml"), []byte(strings.ReplaceAll(nomadAnsible, "dc1", config.DC)), 0600)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(config.BaseDir, "vault.yml"), []byte(strings.ReplaceAll(vaultAnsible, "dc1", config.DC)), 0600)
-	if err != nil {
-		return err
-	}
-
 	err = makeConfigs(config, inventory)
 	if err != nil {
 		return err
@@ -102,22 +77,24 @@ func makeConfigs(config *Config, inventory Inventory) error {
 
 	toWrites := []WriteConfig{
 		{
+			Folder: "ansible",
+			Variables: map[string]any{
+				"DATACENTER": config.DC,
+			},
+		},
+		{
 			Folder:   "consul",
 			Excludes: []string{"consul-server-client.hcl", "consul-server-config.hcl", "consul-policies.hcl"},
 			Extends: []WriteConfig{
 				{
-					SourceFile: "consul-server-client.hcl",
+					SourceFile: "consul-client-config.hcl",
 					DestFile:   "client.j2",
-					Variables: map[string]any{
-						"JoinServer": hosts,
-					},
 				},
 				{
 					SourceFile: "consul-server-config.hcl",
 					DestFile:   "server.j2",
 					Variables: map[string]any{
-						"JoinServers": hosts,
-						"ExpectsNo":   fmt.Sprintf("%v", len(inventory.All.Children.ConsulServers.GetHosts())),
+						"EXPECTS_NO": fmt.Sprintf("%v", len(inventory.All.Children.ConsulServers.GetHosts())),
 					},
 				},
 				{
@@ -126,7 +103,12 @@ func makeConfigs(config *Config, inventory Inventory) error {
 					Variables: map[string]any{
 						"Hosts": inventory.GetAllPrivateHosts(),
 					},
+					WriteKind: WriteKindTemplate,
 				},
+			},
+			Variables: map[string]any{
+				"DATACENTER":   config.DC,
+				"JOIN_SERVERS": hosts,
 			},
 		},
 		{
@@ -140,19 +122,20 @@ func makeConfigs(config *Config, inventory Inventory) error {
 					SourceFile: "nomad.service",
 					DestFile:   "nomad-server.service",
 					Variables: map[string]any{
-						"NomadUser": "nomad",
+						"NOMAD_USER": "nomad",
 					},
 				},
 				{
 					SourceFile: "nomad.service",
 					DestFile:   "nomad-client.service",
 					Variables: map[string]any{
-						"NomadUser": "root",
+						"NOMAD_USER": "root",
 					},
 				},
 			},
 			Variables: map[string]any{
-				"ExpectsNo": fmt.Sprintf("%v", len(inventory.All.Children.NomadServers.GetHosts())),
+				"DATACENTER": config.DC,
+				"EXPECTS_NO": fmt.Sprintf("%v", len(inventory.All.Children.NomadServers.GetHosts())),
 			},
 		},
 		{
@@ -213,7 +196,7 @@ type WriteConfig struct {
 	Excludes   []string
 	Extends    []WriteConfig
 	Variables  map[string]any
-	WriteKind  WriteKind
+	WriteKind  WriteKind // default replacement
 }
 
 func (w WriteConfig) IsFolder() bool {
@@ -234,6 +217,7 @@ func writeTemplate(config *Config, wc WriteConfig) error {
 				writeTemplate(config, WriteConfig{
 					Folder:    filepath.Join(wc.Folder, fi.Name()),
 					Variables: wc.Variables,
+					WriteKind: wc.WriteKind,
 				})
 			} else if !Contains(wc.Excludes, fi.Name()) {
 				if err := writeTemplateFile(config, WriteConfig{
@@ -241,6 +225,7 @@ func writeTemplate(config *Config, wc WriteConfig) error {
 					SourceFile: fi.Name(),
 					DestFile:   fi.Name(),
 					Variables:  wc.Variables,
+					WriteKind:  wc.WriteKind,
 				}); err != nil {
 					return err
 				}
@@ -248,21 +233,23 @@ func writeTemplate(config *Config, wc WriteConfig) error {
 		}
 
 		for _, wc2 := range wc.Extends {
-			vars := wc2.Variables
-			if err := mergo.Map(&vars, wc.Variables, mergo.WithOverride); err != nil {
+			if err := mergo.Map(&wc2.Variables, wc.Variables, mergo.WithOverride); err != nil {
 				return err
 			}
 
+			if len(wc2.WriteKind) == 0 {
+				wc2.WriteKind = wc.WriteKind
+			}
+
+			wc2.Folder = filepath.Join(wc.Folder, wc2.Folder)
+
 			if wc2.IsFolder() {
-				err := writeTemplate(config, WriteConfig{
-					Folder:    filepath.Join(wc.Folder, wc2.Folder),
-					Variables: vars,
-				})
+				err := writeTemplate(config, wc2)
 				if err != nil {
 					return err
 				}
 			} else {
-				if err := writeTemplateFile(config, wc); err != nil {
+				if err := writeTemplateFile(config, wc2); err != nil {
 					return err
 				}
 			}
@@ -293,7 +280,12 @@ func writeTemplateFile(config *Config, wc WriteConfig) error {
 		data[k] = v
 	}
 
-	buf, err := GenerateTemplate(outTmpl, data)
+	writeKind := wc.WriteKind
+	if len(writeKind) == 0 {
+		writeKind = WriteKindReplacement
+	}
+
+	buf, err := GenerateTemplate(outTmpl, data, writeKind)
 	if err != nil {
 		return err
 	}

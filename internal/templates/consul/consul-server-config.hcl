@@ -1,4 +1,4 @@
-datacenter = "dc1"
+datacenter = "${DATACENTER}"
 data_dir = "/opt/consul"
 encrypt = "{{ CONSUL_GOSSIP_KEY }}"
 verify_incoming = true
@@ -7,7 +7,7 @@ verify_server_hostname = true
 
 client_addr = "0.0.0.0"
 server = true
-bootstrap_expect = EXPECTS_NO
+bootstrap_expect = ${EXPECTS_NO}
 
 bind_addr = "{{ private_ip }}"
 
@@ -24,7 +24,7 @@ connect {
   enabled = true
 }
 
-retry_join = [join_servers]
+retry_join = [${JOIN_SERVERS}]
 
 
 ui_config {
